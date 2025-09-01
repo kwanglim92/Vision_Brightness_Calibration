@@ -16,7 +16,6 @@ class 명도측정프로그램:
     # --- 상수 정의 ---
     TARGET_BRIGHTNESS = 128
     KEY_LSG = "LightStrengthGain"
-    KEY_CO = "ContrastOffset"
     PRESET_MANUAL = "직접 선택"
     PRESET_STANDARD = "기준 영역 (70,100)-(400,300)"
     XML_TAG_ITEM = ".//Item"
@@ -50,8 +49,7 @@ class 명도측정프로그램:
 
         # 측정 기록 관리용 변수 추가
         self.measurements = []
-        self.measurement_columns = ["날짜시간", "이미지명", "영역", "평균명도", "RGB평균", 
-                                   "LightStrengthGain", "ContrastOffset", "권장조정값"]
+        self.measurement_columns = ["날짜시간", "이미지명", "영역", "평균명도", "RGB평균", "LightStrengthGain", "권장조정값"]
 
         # 줌 팩터 변수
         self.zoom_factor = 1.0
@@ -60,14 +58,10 @@ class 명도측정프로그램:
         self.db_file_path = ""
         self.has_setup_db_path = False
         self.db_lsg_keyword = ""
-        self.db_co_keyword = ""
         self.db_separator = ""
 
         # 원본 DB 값 저장 변수
-        self.original_db_values = {
-            self.KEY_LSG: 1.0,
-            self.KEY_CO: 0.0
-        }
+        self.original_db_values = { self.KEY_LSG: 1.0 }
 
         # UI 생성 및 이벤트 바인딩
         self._setup_ui()
@@ -211,19 +205,8 @@ class 명도측정프로그램:
         self.reset_lsg_btn = ttk.Button(light_strength_frame, text="초기화", command=lambda: self.reset_db_value(self.KEY_LSG), width=6)
         self.reset_lsg_btn.pack(side=tk.LEFT, padx=5)
 
-        ttk.Label(self.db_frame, text="ContrastOffset:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
-        contrast_offset_frame = ttk.Frame(self.db_frame)
-        contrast_offset_frame.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
-        self.contrast_offset_var = tk.DoubleVar(value=0.0)
-        self.contrast_offset_scale = ttk.Scale(contrast_offset_frame, from_=0.0, to=1.0, variable=self.contrast_offset_var, orient=tk.HORIZONTAL, length=180, command=self.update_contrast_offset)
-        self.contrast_offset_scale.pack(side=tk.LEFT)
-        self.contrast_offset_entry = ttk.Entry(contrast_offset_frame, width=7, textvariable=self.contrast_offset_var, validate='key', validatecommand=vcmd)
-        self.contrast_offset_entry.pack(side=tk.LEFT, padx=5)
-        self.reset_co_btn = ttk.Button(contrast_offset_frame, text="초기화", command=lambda: self.reset_db_value(self.KEY_CO), width=6)
-        self.reset_co_btn.pack(side=tk.LEFT, padx=5)
-
         db_button_frame = ttk.Frame(self.db_frame)
-        db_button_frame.grid(row=2, column=0, columnspan=2, pady=5)
+        db_button_frame.grid(row=1, column=0, columnspan=2, pady=5)
         self.reset_all_db_btn = ttk.Button(db_button_frame, text="DB 값 불러오기", command=self.load_db_values, width=12)
         self.reset_all_db_btn.pack(side=tk.LEFT, padx=5)
         self.db_apply_btn = ttk.Button(db_button_frame, text="DB 즉시 적용", command=self.apply_db_to_file, width=10)
@@ -274,7 +257,6 @@ class 명도측정프로그램:
 
         # DB 값 변경 이벤트
         self.light_strength_var.trace_add("write", self.on_db_value_changed)
-        self.contrast_offset_var.trace_add("write", self.on_db_value_changed)
 
         # 기록 리스트박스 선택 이벤트
         self.history_listbox.bind("<<ListboxSelect>>", self.on_history_select)
@@ -455,19 +437,6 @@ levi.beak@parksystems.com
                 self.light_strength_entry.insert(0, formatted_value)
         except:
             pass
-        
-    def update_contrast_offset(self, *args):
-        """ContrastOffset 슬라이더 변경 시 Entry 업데이트"""
-        try:
-            value = self.contrast_offset_var.get()
-            # 값이 변경되었을 때만 Entry 업데이트
-            current_text = self.contrast_offset_entry.get()
-            formatted_value = f"{value:.2f}"
-            if current_text != formatted_value:
-                self.contrast_offset_entry.delete(0, tk.END)
-                self.contrast_offset_entry.insert(0, formatted_value)
-        except:
-            pass
             
     def zoom_in(self):
         """이미지 확대"""
@@ -516,7 +485,6 @@ levi.beak@parksystems.com
             avg_brightness,
             self.TARGET_BRIGHTNESS,
             self.light_strength_var.get(),
-            self.contrast_offset_var.get(),
             self.is_full_image_analysis
         )
         
@@ -524,11 +492,8 @@ levi.beak@parksystems.com
         self._update_recommendation_widget(recommendations)
 
     @staticmethod
-    def _generate_recommendation_text(avg_brightness, target_brightness, current_light_strength, current_contrast_offset, is_full_analysis):
+    def _generate_recommendation_text(avg_brightness, target_brightness, current_light_strength, is_full_analysis):
         """밝기 값에 따라 권장 조정값 텍스트 목록을 생성합니다."""
-        # target_brightness는 이미 매개변수로 전달받음
-        # current_light_strength와 current_contrast_offset도 이미 매개변수로 전달받음
-        
         recommendations = []
         
         # 분석 유형에 따른 문구 추가
@@ -554,20 +519,20 @@ levi.beak@parksystems.com
                 recommendations.append(f"LightStrengthGain을 {current_light_strength:.2f}에서 {new_light_strength:.2f}로 감소시키는 것을 권장합니다.")
                 recommendations.append(f"조정량: -{adjustment:.3f} (= -{brightness_diff:.1f}/255 * {adjustment_factor:.2f})")
             else:
-                # 너무 어두움 - ContrastOffset 증가 필요
+                # 너무 어두움 - LightStrengthGain 증가 필요
                 brightness_diff = target_brightness - avg_brightness
                 
-                # 현재 ContrastOffset 값을 고려한 조정량 계산
-                adjustment_factor = 1.0 - current_contrast_offset  # 조정 가능한 여유 범위
-                if adjustment_factor < 0.1:  # 조정 여유가 거의 없을 경우
-                    adjustment_factor = 0.1  # 최소값 설정
+                # 조정 가능한 여유 범위 (1.0 - 현재값)
+                adjustment_factor = 1.0 - current_light_strength
+                if adjustment_factor < 0.1:
+                    adjustment_factor = 0.1
                 
                 adjustment = (brightness_diff / 255) * adjustment_factor
                 
-                new_contrast_offset = min(1.0, current_contrast_offset + adjustment)
+                new_light_strength = min(1.0, current_light_strength + adjustment)
                 
                 recommendations.append(f"명도({avg_brightness:.2f})가 목표(128)보다 {brightness_diff:.1f} 낮습니다.")
-                recommendations.append(f"ContrastOffset을 {current_contrast_offset:.2f}에서 {new_contrast_offset:.2f}로 증가시키는 것을 권장합니다.")
+                recommendations.append(f"LightStrengthGain을 {current_light_strength:.2f}에서 {new_light_strength:.2f}로 증가시키는 것을 권장합니다.")
                 recommendations.append(f"조정량: +{adjustment:.3f} (= +{brightness_diff:.1f}/255 * {adjustment_factor:.2f})")
         
         return recommendations
@@ -986,7 +951,6 @@ levi.beak@parksystems.com
             rgb = self.rgb_label.cget("text")
         
         light_strength = self.light_strength_var.get()
-        contrast_offset = self.contrast_offset_var.get()
         recommendation = self.recommend_text.get(1.0, tk.END).strip()
         
         # 측정 항목 생성
@@ -997,7 +961,6 @@ levi.beak@parksystems.com
             "평균명도": brightness,
             "RGB평균": rgb,
             self.KEY_LSG: f"{light_strength:.2f}",
-            self.KEY_CO: f"{contrast_offset:.2f}",
             "권장조정값": recommendation
         }
         
@@ -1005,7 +968,7 @@ levi.beak@parksystems.com
         self.measurements.append(measurement)
         
         # 리스트박스에 표시
-        display_text = f"{now} - 명도: {brightness}, LSG: {light_strength:.2f}, CO: {contrast_offset:.2f}"
+        display_text = f"{now} - 명도: {brightness}, LSG: {light_strength:.2f}"
         self.history_listbox.insert(tk.END, display_text)
         
         messagebox.showinfo("저장 완료", "측정 결과가 기록에 저장되었습니다.")
@@ -1046,10 +1009,7 @@ levi.beak@parksystems.com
         """기록에서 선택한 DB 값을 현재 설정에 적용"""
         try:
             light_strength = float(history_item[self.KEY_LSG])
-            contrast_offset = float(history_item[self.KEY_CO])
-            
             self.light_strength_var.set(light_strength)
-            self.contrast_offset_var.set(contrast_offset)
             
             # 재계산
             self.recalculate_recommendations()
@@ -1128,7 +1088,6 @@ levi.beak@parksystems.com
 
         try:
             light_strength = self.light_strength_var.get()
-            contrast_offset = self.contrast_offset_var.get()
             
             # Camera XML 파일 파싱
             camera_tree = ET.parse(camera_xml_path)
@@ -1136,7 +1095,6 @@ levi.beak@parksystems.com
             
             # LightStrengthGain 및 ContrastOffset 값 업데이트
             lsg_updated = False
-            co_updated = False
             
             for item in camera_root.findall(self.XML_TAG_ITEM):
                 name_elem = item.find(self.XML_TAG_NAME)
@@ -1146,11 +1104,6 @@ levi.beak@parksystems.com
                         if value_elem is not None:
                             value_elem.text = f"{light_strength:.2f}"
                             lsg_updated = True
-                    elif name_elem.text == self.KEY_CO:
-                        value_elem = item.find(self.XML_TAG_VALUE)
-                        if value_elem is not None:
-                            value_elem.text = f"{contrast_offset:.2f}"
-                            co_updated = True
             
             # 업데이트된 파일 저장
             camera_tree.write(camera_xml_path, encoding="utf-8", xml_declaration=True)
@@ -1159,8 +1112,7 @@ levi.beak@parksystems.com
             messagebox.showinfo("DB 적용 완료", 
                                f"DB 값이 {camera_xml_path}에 성공적으로 적용되었습니다.\n\n"
                                f"Camera 타입: {camera_name}\n"
-                               f"LightStrengthGain: {light_strength:.2f}\n"
-                               f"ContrastOffset: {contrast_offset:.2f}")
+                               f"LightStrengthGain: {light_strength:.2f}")
             
             # 측정 기록에 DB 적용 내역 추가
             self.save_measurement(f"DB 파일에 적용: {camera_name}.xml")
@@ -1252,7 +1204,7 @@ levi.beak@parksystems.com
             for item in camera_root.findall(self.XML_TAG_ITEM):
                 name_elem = item.find(self.XML_TAG_NAME)
                 if name_elem is not None:
-                    if name_elem.text in [self.KEY_LSG, self.KEY_CO]:
+                    if name_elem.text == self.KEY_LSG:
                         value_elem = item.find(self.XML_TAG_VALUE)
                         if value_elem is not None:
                             try:
@@ -1265,15 +1217,10 @@ levi.beak@parksystems.com
                 self.light_strength_var.set(db_values[self.KEY_LSG])
                 self.original_db_values[self.KEY_LSG] = db_values[self.KEY_LSG]
             
-            if self.KEY_CO in db_values:
-                self.contrast_offset_var.set(db_values[self.KEY_CO])
-                self.original_db_values[self.KEY_CO] = db_values[self.KEY_CO]
-            
             # 성공 메시지
             messagebox.showinfo("DB 불러오기 완료", 
                                f"Camera({camera_name}) XML 파일에서 DB 값을 불러왔습니다.\n\n"
-                               f"LightStrengthGain: {self.light_strength_var.get():.2f}\n"
-                               f"ContrastOffset: {self.contrast_offset_var.get():.2f}")
+                               f"LightStrengthGain: {self.light_strength_var.get():.2f}")
         
         except Exception as e:
             messagebox.showerror("오류", f"DB 값 불러오기 중 오류 발생: {str(e)}")
@@ -1283,8 +1230,6 @@ levi.beak@parksystems.com
         """특정 DB 값을 원래 값으로 초기화"""
         if value_name == self.KEY_LSG:
             self.light_strength_var.set(self.original_db_values[self.KEY_LSG])
-        elif value_name == self.KEY_CO:
-            self.contrast_offset_var.set(self.original_db_values[self.KEY_CO])
         
         # 값이 변경되었음을 프로그램에 알림
         if self.current_avg_brightness > 0:
