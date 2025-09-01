@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vision 명도 분석 보고서</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333366; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .summary { margin: 20px 0; padding: 15px; background-color: #eef; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Vision 명도 분석 보고서</h1>
+    <div class="summary">
+        <h2>분석 요약</h2>
+        <p>총 측정 횟수: {{total_measurements}}</p>
+        <p>보고서 생성 시간: {{report_time}}</p>
+    </div>
+    <h2>측정 기록</h2>
+    <table>
+        <tr>{{table_header}}</tr>
+        {{table_rows}}
+    </table>
+</body>
+</html>

@@ -1186,62 +1186,41 @@ levi.beak@parksystems.com
             if not file_path:
                 return
             
-            # HTML 보고서 생성
-            with open(file_path, 'w', encoding='utf-8') as f:
-                # HTML 헤더
-                f.write('''
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Vision 명도 분석 보고서</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        h1 { color: #333366; }
-                        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #f2f2f2; }
-                        tr:nth-child(even) { background-color: #f9f9f9; }
-                        .summary { margin: 20px 0; padding: 15px; background-color: #eef; border-radius: 5px; }
-                    </style>
-                </head>
-                <body>
-                    <h1>Vision 명도 분석 보고서</h1>
-                    <div class="summary">
-                        <h2>분석 요약</h2>
-                        <p>총 측정 횟수: ''' + str(len(self.measurements)) + '''</p>
-                        <p>보고서 생성 시간: ''' + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '''</p>
-                    </div>
-                    <h2>측정 기록</h2>
-                    <table>
-                        <tr>
-                ''')
-                
-                # 테이블 헤더
+            # 템플릿 파일 읽기
+            try:
+                template_path = os.path.join(os.path.dirname(__file__), "report_template.html")
+                with open(template_path, 'r', encoding='utf-8') as t:
+                    template = t.read()
+            except FileNotFoundError:
+                messagebox.showerror("오류", "report_template.html 파일을 찾을 수 없습니다.")
+                return
+
+            # 테이블 헤더 생성
+            table_header_html = "".join(f'<th>{col}</th>' for col in self.measurement_columns)
+
+            # 테이블 데이터 행 생성
+            table_rows_html = ""
+            for measurement in self.measurements:
+                table_rows_html += '<tr>'
                 for col in self.measurement_columns:
-                    f.write(f'<th>{col}</th>')
-                f.write('</tr>')
-                
-                # 테이블 데이터
-                for measurement in self.measurements:
-                    f.write('<tr>')
-                    for col in self.measurement_columns:
-                        f.write(f'<td>{measurement.get(col, "")}</td>')
-                    f.write('</tr>')
-                
-                # HTML 푸터
-                f.write('''
-                    </table>
-                </body>
-                </html>
-                ''')
+                    table_rows_html += f'<td>{measurement.get(col, "")}</td>'
+                table_rows_html += '</tr>\n'
+
+            # 템플릿에 데이터 채우기
+            report_content = template.replace('{{total_measurements}}', str(len(self.measurements)))
+            report_content = report_content.replace('{{report_time}}', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            report_content = report_content.replace('{{table_header}}', table_header_html)
+            report_content = report_content.replace('{{table_rows}}', table_rows_html)
+
+            # 완성된 HTML을 파일에 쓰기
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(report_content)
             
             # 성공 메시지
             messagebox.showinfo("보고서 생성 완료", f"분석 보고서가 {file_path}에 저장되었습니다.")
             
             # 브라우저에서 열기
             webbrowser.open(file_path)
-        
         except Exception as e:
             messagebox.showerror("오류", f"보고서 생성 중 오류 발생: {str(e)}")
 
