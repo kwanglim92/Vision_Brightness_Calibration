@@ -12,6 +12,68 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 import webbrowser
 
+class ChecklistDialog(tk.Toplevel):
+    """프로그램 시작 전 사전 준비사항을 확인하는 모달 대화상자"""
+    def __init__(self, parent, checklist_items):
+        super().__init__(parent)
+        self.transient(parent) # 부모-자식 관계 설정
+
+        self.title("사전 준비사항 체크리스트")
+        self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # 인스턴스 변수 초기화
+        self.checklist_items = checklist_items
+        self.check_vars = []
+        self.proceed = False
+
+        # 위젯 생성
+        self._create_widgets()
+
+        # 화면 중앙에 위치시키기 (부모 창이 숨겨져 있을 때를 대비해 update_idletasks 호출)
+        parent.update_idletasks()
+        window_width = 550
+        window_height = 150
+        screen_width = parent.winfo_screenwidth()
+        screen_height = parent.winfo_screenheight()
+        x_coordinate = (screen_width // 2) - (window_width // 2)
+        y_coordinate = (screen_height // 2) - (window_height // 2)
+        self.geometry(f"{window_width}x{window_height}+{x_coordinate}+{y_coordinate}")
+
+        # 모든 설정이 끝난 후, 모달로 만들고 포커스를 줍니다.
+        self.grab_set()
+        self.focus_set()
+
+    def _create_widgets(self):
+        main_frame = ttk.Frame(self, padding=15)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(main_frame, text="프로그램을 시작하기 전, 아래 항목들을 모두 확인해주세요.", font=("Arial", 11, "bold")).pack(pady=(0, 15))
+
+        checklist_frame = ttk.Frame(main_frame)
+        checklist_frame.pack(fill=tk.X, padx=10)
+
+        for item_text in self.checklist_items: # 이제 self.checklist_items를 사용
+            var = tk.BooleanVar(value=False)
+            cb = ttk.Checkbutton(checklist_frame, text=item_text, variable=var, command=self._check_all_selected)
+            cb.pack(anchor=tk.W, pady=3)
+            self.check_vars.append(var)
+
+        self.start_button = ttk.Button(main_frame, text="프로그램 시작", command=self._on_start, state=tk.DISABLED)
+        self.start_button.pack(pady=20)
+
+    def _check_all_selected(self):
+        self.start_button.config(state=tk.NORMAL if all(var.get() for var in self.check_vars) else tk.DISABLED)
+
+    def _on_start(self):
+        self.proceed = True
+        self.destroy()
+
+    def _on_close(self):
+        if messagebox.askyesno("종료 확인", "체크리스트를 완료하지 않고 프로그램을 종료하시겠습니까?"):
+            self.proceed = False
+            self.destroy()
+
 class 명도측정프로그램:
     # --- 상수 정의 ---
     TARGET_BRIGHTNESS = 128
@@ -32,7 +94,7 @@ class 명도측정프로그램:
         self.root.geometry("1200x750")
 
         # 메뉴 바 추가 (도움말 메뉴만) - 임시로 주석 처리
-        # self.create_menu_bar()
+        self.create_menu_bar()
 
         # 변수 초기화
         self.image = None
@@ -223,6 +285,12 @@ class 명도측정프로그램:
         self.recommend_text.tag_configure("value", font=("Arial", 11, "bold"), foreground="red")
         self.recommend_text.tag_configure("arrow", font=("Arial", 11), foreground="blue")
 
+        # 재계산 버튼 프레임
+        recalc_frame = ttk.Frame(self.recommend_frame)
+        recalc_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+        self.recalc_btn = ttk.Button(recalc_frame, text="현재 DB 값으로 권장값 재계산", command=self.recalculate_recommendations)
+        self.recalc_btn.pack(side=tk.RIGHT)
+
         # --- 측정 기록 ---
         self.history_frame = ttk.LabelFrame(self.right_frame, text="측정 기록")
         self.history_frame.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -254,9 +322,6 @@ class 명도측정프로그램:
 
         # 프리셋 콤보박스 이벤트
         self.preset_combo.bind('<<ComboboxSelected>>', self.on_preset_selected)
-
-        # DB 값 변경 이벤트
-        self.light_strength_var.trace_add("write", self.on_db_value_changed)
 
         # 기록 리스트박스 선택 이벤트
         self.history_listbox.bind("<<ListboxSelect>>", self.on_history_select)
@@ -401,11 +466,11 @@ levi.beak@parksystems.com
         desc_text.pack(pady=5, padx=5, fill=tk.X)
         desc_text.insert(tk.END, "Vision Brightness Calibration은 이미지의 명도를 측정하고 카메라 DB 설정을 최적화하기 위한 도구입니다.\n\n주요 기능:\n• 이미지 명도 분석\n• 카메라 DB 값 최적화 제안\n• 측정 기록 관리 및 보고서 생성")
         desc_text.config(state=tk.DISABLED)
-        
-        # 닫기 버튼
+
+        # 닫기 버튼 추가
         close_button = ttk.Button(about_window, text="닫기", command=about_window.destroy)
         close_button.pack(pady=10)
-
+        
     def validate_float_input(self, value):
         """입력값이 0~1 사이의 유효한 소수점 값인지 검증"""
         if value == "":
@@ -417,13 +482,6 @@ levi.beak@parksystems.com
             return True
         except ValueError:
             return False
-        
-    def on_db_value_changed(self, *args):
-        """DB 값이 변경되면 조정값 자동 재계산"""
-        # 현재 측정된 명도가 있을 때만 재계산
-        if self.current_avg_brightness > 0:
-            # 0.5초 후에 재계산 (입력 중일 때는 계산하지 않도록)
-            self.root.after(500, self.recalculate_recommendations)
         
     def update_light_strength(self, *args):
         """LightStrengthGain 슬라이더 변경 시 Entry 업데이트"""
@@ -1248,7 +1306,38 @@ levi.beak@parksystems.com
         else:
             messagebox.showinfo("알림", "초기화할 측정 기록이 없습니다.")
 
+class AppController:
+    """애플리케이션의 시작 순서와 생명주기를 관리하는 컨트롤러"""
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.withdraw()  # 메인 윈도우를 시작 시 숨김
+
+        # Tkinter 이벤트 루프가 시작된 후 체크리스트를 실행하도록 예약
+        self.root.after(10, self.run_checklist)
+        self.root.mainloop()
+
+    def run_checklist(self):
+        """사전 체크리스트 대화상자를 실행하고 결과를 처리합니다."""
+        try:
+            checklist_items = [
+                "White balance 및 vimba setting 완료 상태 확인"
+            ]
+            checklist_dialog = ChecklistDialog(self.root, checklist_items)
+            self.root.wait_window(checklist_dialog)  # 대화상자가 닫힐 때까지 대기
+
+            if checklist_dialog.proceed:
+                self.start_main_app()
+            else:
+                self.root.destroy()
+        except Exception as e:
+            messagebox.showerror("치명적 오류", f"프로그램 시작 중 오류가 발생했습니다: {e}")
+            self.root.destroy()
+
+    def start_main_app(self):
+        """메인 애플리케이션 창을 초기화하고 화면에 표시합니다."""
+        self.root.deiconify()  # 메인 윈도우를 다시 표시
+        self.app = 명도측정프로그램(self.root)
+
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = 명도측정프로그램(root)
-    root.mainloop()
+    # AppController를 통해 애플리케이션을 시작합니다.
+    AppController()
