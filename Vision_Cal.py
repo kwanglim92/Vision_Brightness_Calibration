@@ -16,11 +16,21 @@ class ChecklistDialog(tk.Toplevel):
     """프로그램 시작 전 사전 준비사항을 확인하는 모달 대화상자"""
     def __init__(self, parent, checklist_items):
         super().__init__(parent)
-        self.transient(parent) # 부모-자식 관계 설정
-
+        
+        # 부모 윈도우가 표시 가능한 경우에만 transient 설정
+        try:
+            if parent.winfo_viewable():
+                self.transient(parent)
+        except:
+            pass
+            
         self.title("사전 준비사항 체크리스트")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        
+        # 대화상자를 항상 위에 표시
+        self.lift()
+        self.attributes('-topmost', True)
 
         # 인스턴스 변수 초기화
         self.checklist_items = checklist_items
@@ -30,12 +40,14 @@ class ChecklistDialog(tk.Toplevel):
         # 위젯 생성
         self._create_widgets()
 
-        # 화면 중앙에 위치시키기 (부모 창이 숨겨져 있을 때를 대비해 update_idletasks 호출)
-        parent.update_idletasks()
+        # 화면 중앙에 위치시키기
+        self.update_idletasks()  # 자체 update_idletasks 호출
         window_width = 550
         window_height = 150
-        screen_width = parent.winfo_screenwidth()
-        screen_height = parent.winfo_screenheight()
+        
+        # 스크린 크기를 직접 가져옴
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
         x_coordinate = (screen_width // 2) - (window_width // 2)
         y_coordinate = (screen_height // 2) - (window_height // 2)
         self.geometry(f"{window_width}x{window_height}+{x_coordinate}+{y_coordinate}")
@@ -1310,10 +1322,12 @@ class AppController:
     """애플리케이션의 시작 순서와 생명주기를 관리하는 컨트롤러"""
     def __init__(self):
         self.root = tk.Tk()
-        self.root.withdraw()  # 메인 윈도우를 시작 시 숨김
-
+        # 메인 윈도우를 매우 작게 만들어서 보이지 않게 함 (완전히 숨기지는 않음)
+        self.root.geometry('1x1+0+0')  # 1x1 크기로 왼쪽 상단에 위치
+        self.root.overrideredirect(True)  # 윈도우 테두리 제거
+        
         # Tkinter 이벤트 루프가 시작된 후 체크리스트를 실행하도록 예약
-        self.root.after(10, self.run_checklist)
+        self.root.after(100, self.run_checklist)  # 시간을 좀 더 늘림
         self.root.mainloop()
 
     def run_checklist(self):
@@ -1335,7 +1349,19 @@ class AppController:
 
     def start_main_app(self):
         """메인 애플리케이션 창을 초기화하고 화면에 표시합니다."""
+        # 메인 윈도우를 정상 크기로 복원
+        self.root.overrideredirect(False)  # 윈도우 테두리 복원
+        self.root.geometry("1200x750")  # 정상 크기로 설정
         self.root.deiconify()  # 메인 윈도우를 다시 표시
+        
+        # 화면 중앙에 위치시키기
+        self.root.update_idletasks()
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width // 2) - (1200 // 2)
+        y = (screen_height // 2) - (750 // 2)
+        self.root.geometry(f"1200x750+{x}+{y}")
+        
         self.app = 명도측정프로그램(self.root)
 
 if __name__ == "__main__":
