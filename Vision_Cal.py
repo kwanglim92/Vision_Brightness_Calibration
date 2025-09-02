@@ -14,7 +14,7 @@ import webbrowser
 
 class ChecklistDialog(tk.Toplevel):
     """프로그램 시작 전 사전 준비사항을 확인하는 모달 대화상자"""
-    def __init__(self, parent, checklist_items):
+    def __init__(self, parent, checklist_categories):
         super().__init__(parent)
         
         # 부모 윈도우가 표시 가능한 경우에만 transient 설정
@@ -24,7 +24,7 @@ class ChecklistDialog(tk.Toplevel):
         except:
             pass
             
-        self.title("사전 준비사항 체크리스트")
+        self.title("XEA Camera Vision & Safety - 사전 준비사항 체크리스트")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         
@@ -33,8 +33,8 @@ class ChecklistDialog(tk.Toplevel):
         self.attributes('-topmost', True)
 
         # 인스턴스 변수 초기화
-        self.checklist_items = checklist_items
-        self.check_vars = []
+        self.checklist_categories = checklist_categories
+        self.check_vars = {}
         self.proceed = False
 
         # 위젯 생성
@@ -42,8 +42,8 @@ class ChecklistDialog(tk.Toplevel):
 
         # 화면 중앙에 위치시키기
         self.update_idletasks()  # 자체 update_idletasks 호출
-        window_width = 550
-        window_height = 150
+        window_width = 700
+        window_height = 550
         
         # 스크린 크기를 직접 가져옴
         screen_width = self.winfo_screenwidth()
@@ -60,22 +60,86 @@ class ChecklistDialog(tk.Toplevel):
         main_frame = ttk.Frame(self, padding=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(main_frame, text="프로그램을 시작하기 전, 아래 항목들을 모두 확인해주세요.", font=("Arial", 11, "bold")).pack(pady=(0, 15))
+        # 제목
+        title_frame = ttk.Frame(main_frame)
+        title_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(title_frame, text="Vision의 밝기 측정 및 Calibration 조건", 
+                 font=("Arial", 13, "bold")).pack()
+        ttk.Label(title_frame, text="※ White balance 및 vimba setting 완료 상태", 
+                 font=("Arial", 10, "italic"), foreground="red").pack(pady=(5, 0))
 
-        checklist_frame = ttk.Frame(main_frame)
-        checklist_frame.pack(fill=tk.X, padx=10)
-
-        for item_text in self.checklist_items: # 이제 self.checklist_items를 사용
-            var = tk.BooleanVar(value=False)
-            cb = ttk.Checkbutton(checklist_frame, text=item_text, variable=var, command=self._check_all_selected)
-            cb.pack(anchor=tk.W, pady=3)
-            self.check_vars.append(var)
-
-        self.start_button = ttk.Button(main_frame, text="프로그램 시작", command=self._on_start, state=tk.DISABLED)
-        self.start_button.pack(pady=20)
+        # 스크롤 가능한 체크리스트 영역
+        canvas = tk.Canvas(main_frame, height=350)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # 카테고리별 체크리스트 생성
+        for category, items in self.checklist_categories.items():
+            # 카테고리 프레임
+            category_frame = ttk.LabelFrame(scrollable_frame, text=category, 
+                                           padding=10)
+            category_frame.pack(fill=tk.X, padx=10, pady=5)
+            
+            # 카테고리 내 항목들
+            self.check_vars[category] = []
+            for item_text in items:
+                var = tk.BooleanVar(value=False)
+                cb = ttk.Checkbutton(category_frame, text=item_text, 
+                                    variable=var, 
+                                    command=self._check_all_selected)
+                cb.pack(anchor=tk.W, pady=2, padx=10)
+                self.check_vars[category].append(var)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # 버튼 프레임
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(15, 0))
+        
+        # 전체 선택/해제 버튼
+        self.select_all_btn = ttk.Button(button_frame, text="전체 선택", 
+                                         command=self._select_all, width=12)
+        self.select_all_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.clear_all_btn = ttk.Button(button_frame, text="전체 해제", 
+                                        command=self._clear_all, width=12)
+        self.clear_all_btn.pack(side=tk.LEFT, padx=5)
+        
+        # 프로그램 시작 버튼
+        self.start_button = ttk.Button(button_frame, text="프로그램 시작", 
+                                      command=self._on_start, 
+                                      state=tk.DISABLED, width=15)
+        self.start_button.pack(side=tk.RIGHT, padx=5)
 
     def _check_all_selected(self):
-        self.start_button.config(state=tk.NORMAL if all(var.get() for var in self.check_vars) else tk.DISABLED)
+        all_checked = all(
+            all(var.get() for var in vars_list) 
+            for vars_list in self.check_vars.values()
+        )
+        self.start_button.config(state=tk.NORMAL if all_checked else tk.DISABLED)
+    
+    def _select_all(self):
+        """모든 체크박스 선택"""
+        for vars_list in self.check_vars.values():
+            for var in vars_list:
+                var.set(True)
+        self._check_all_selected()
+    
+    def _clear_all(self):
+        """모든 체크박스 해제"""
+        for vars_list in self.check_vars.values():
+            for var in vars_list:
+                var.set(False)
+        self._check_all_selected()
 
     def _on_start(self):
         self.proceed = True
@@ -1333,10 +1397,30 @@ class AppController:
     def run_checklist(self):
         """사전 체크리스트 대화상자를 실행하고 결과를 처리합니다."""
         try:
-            checklist_items = [
-                "White balance 및 vimba setting 완료 상태 확인"
-            ]
-            checklist_dialog = ChecklistDialog(self.root, checklist_items)
+            # 카테고리별 체크리스트 항목 정의
+            checklist_categories = {
+                "① Camera Vision Setting": [
+                    "Brightness: 50 설정 확인",
+                    "Contrast: 0 설정 확인",
+                    "Light Strength: 50 설정 확인"
+                ],
+                "② Sample Focus Setting": [
+                    "Tip-Sample Distance: 1.0mm 설정",
+                    "측정 Sample: Bare Si 준비"
+                ],
+                "③ Capture Image 저장": [
+                    "Vision Mode: Large 선택",
+                    "Capture: Displayed 설정",
+                    "이미지 측정 및 저장 완료"
+                ],
+                "④ 사전 완료 테스트": [
+                    "White balance 설정 완료",
+                    "Vimba Viewer 설정 완료",
+                    "Camera 연결 상태 확인"
+                ]
+            }
+            
+            checklist_dialog = ChecklistDialog(self.root, checklist_categories)
             self.root.wait_window(checklist_dialog)  # 대화상자가 닫힐 때까지 대기
 
             if checklist_dialog.proceed:
