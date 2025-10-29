@@ -12,143 +12,9 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 import webbrowser
 
-class ChecklistDialog(tk.Toplevel):
-    """프로그램 시작 전 사전 준비사항을 확인하는 모달 대화상자"""
-    def __init__(self, parent, checklist_categories):
-        super().__init__(parent)
-        
-        # 부모 윈도우가 표시 가능한 경우에만 transient 설정
-        try:
-            if parent.winfo_viewable():
-                self.transient(parent)
-        except:
-            pass
-            
-        self.title("XEA Camera Vision & Safety - 사전 준비사항 체크리스트")
-        self.resizable(False, False)
-        self.protocol("WM_DELETE_WINDOW", self._on_close)
-        
-        # 대화상자를 항상 위에 표시
-        self.lift()
-        self.attributes('-topmost', True)
+# ChecklistDialog를 별도 모듈에서 import
+from src.gui.checklist_dialog import ChecklistDialog
 
-        # 인스턴스 변수 초기화
-        self.checklist_categories = checklist_categories
-        self.check_vars = {}
-        self.proceed = False
-
-        # 위젯 생성
-        self._create_widgets()
-
-        # 화면 중앙에 위치시키기
-        self.update_idletasks()  # 자체 update_idletasks 호출
-        window_width = 700
-        window_height = 550
-        
-        # 스크린 크기를 직접 가져옴
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x_coordinate = (screen_width // 2) - (window_width // 2)
-        y_coordinate = (screen_height // 2) - (window_height // 2)
-        self.geometry(f"{window_width}x{window_height}+{x_coordinate}+{y_coordinate}")
-
-        # 모든 설정이 끝난 후, 모달로 만들고 포커스를 줍니다.
-        self.grab_set()
-        self.focus_set()
-
-    def _create_widgets(self):
-        main_frame = ttk.Frame(self, padding=15)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # 제목
-        title_frame = ttk.Frame(main_frame)
-        title_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(title_frame, text="Vision의 밝기 측정 및 Calibration 조건", 
-                 font=("Arial", 13, "bold")).pack()
-        ttk.Label(title_frame, text="※ White balance 및 vimba setting 완료 상태", 
-                 font=("Arial", 10, "italic"), foreground="red").pack(pady=(5, 0))
-
-        # 스크롤 가능한 체크리스트 영역
-        canvas = tk.Canvas(main_frame, height=350)
-        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-        
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # 카테고리별 체크리스트 생성
-        for category, items in self.checklist_categories.items():
-            # 카테고리 프레임
-            category_frame = ttk.LabelFrame(scrollable_frame, text=category, 
-                                           padding=10)
-            category_frame.pack(fill=tk.X, padx=10, pady=5)
-            
-            # 카테고리 내 항목들
-            self.check_vars[category] = []
-            for item_text in items:
-                var = tk.BooleanVar(value=False)
-                cb = ttk.Checkbutton(category_frame, text=item_text, 
-                                    variable=var, 
-                                    command=self._check_all_selected)
-                cb.pack(anchor=tk.W, pady=2, padx=10)
-                self.check_vars[category].append(var)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # 버튼 프레임
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(15, 0))
-        
-        # 전체 선택/해제 버튼
-        self.select_all_btn = ttk.Button(button_frame, text="전체 선택", 
-                                         command=self._select_all, width=12)
-        self.select_all_btn.pack(side=tk.LEFT, padx=5)
-        
-        self.clear_all_btn = ttk.Button(button_frame, text="전체 해제", 
-                                        command=self._clear_all, width=12)
-        self.clear_all_btn.pack(side=tk.LEFT, padx=5)
-        
-        # 프로그램 시작 버튼
-        self.start_button = ttk.Button(button_frame, text="프로그램 시작", 
-                                      command=self._on_start, 
-                                      state=tk.DISABLED, width=15)
-        self.start_button.pack(side=tk.RIGHT, padx=5)
-
-    def _check_all_selected(self):
-        all_checked = all(
-            all(var.get() for var in vars_list) 
-            for vars_list in self.check_vars.values()
-        )
-        self.start_button.config(state=tk.NORMAL if all_checked else tk.DISABLED)
-    
-    def _select_all(self):
-        """모든 체크박스 선택"""
-        for vars_list in self.check_vars.values():
-            for var in vars_list:
-                var.set(True)
-        self._check_all_selected()
-    
-    def _clear_all(self):
-        """모든 체크박스 해제"""
-        for vars_list in self.check_vars.values():
-            for var in vars_list:
-                var.set(False)
-        self._check_all_selected()
-
-    def _on_start(self):
-        self.proceed = True
-        self.destroy()
-
-    def _on_close(self):
-        if messagebox.askyesno("종료 확인", "체크리스트를 완료하지 않고 프로그램을 종료하시겠습니까?"):
-            self.proceed = False
-            self.destroy()
 
 class 명도측정프로그램:
     # --- 상수 정의 ---
@@ -165,7 +31,7 @@ class 명도측정프로그램:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("Vision Brightness Calibration (v1.1.0)")
+        self.root.title("Vision Brightness Calibration (v1.2.0)")
         # 더 큰 창 크기로 설정
         self.root.geometry("1200x750")
 
@@ -442,41 +308,81 @@ class 명도측정프로그램:
         
         # 설명서 내용
         manual_content = """
-# Vision Brightness Calibration 사용 설명서
 
-## 프로그램 개요
-이 프로그램은 이미지의 명도(밝기)를 측정하고, 카메라 DB 설정값을 최적화하기 위한 도구입니다. 전체 이미지 또는 선택 영역의 명도를 분석하여 LightStrengthGain과 ContrastOffset 값의 최적 조정을 제안합니다.
+Vision Brightness Calibration v1.2.0 - 사용 설명서
 
-## 주요 기능
+【 프로그램 개요 】
+이미지의 명도(밝기)를 측정하고 카메라 DB 설정값을 최적화하기 위한 도구입니다.
+전체 이미지 또는 선택 영역의 명도를 분석하여 LightStrengthGain 값의 최적 조정을 제안합니다.
 
-### 1. 이미지 불러오기 및 분석
-- '이미지 불러오기' 버튼을 클릭하여 분석할 이미지를 선택합니다.
-- '전체 이미지 분석' 버튼을 클릭하면 전체 이미지의 명도를 분석합니다.
-- 이미지 위에서 마우스 드래그로 영역을 선택하면 해당 영역의 명도를 분석합니다.
-- '선택 영역 초기화' 버튼으로 선택 영역을 지울 수 있습니다.
+【 주요 기능 】
 
-### 2. 명도 분석 결과
-- 측정 결과: 선택 영역의 평균 명도, 표준편차, 최소/최대 명도, RGB 평균값
-- 전체 이미지 정보: 이미지 크기, 전체 평균 명도, 표준편차, RGB 평균값
-- 히스토그램: 명도 분포를 시각적으로 확인할 수 있는 그래프
+▶ 1. 프로그램 시작
+  • 프로그램 실행 시 사전 체크리스트 대화상자가 표시됩니다
+  • 모든 체크박스를 선택해야 프로그램이 시작됩니다
+  • 체크 항목: Vision 설정, Sample Focus 설정, 이미지 캡처 설정, 사전 완료 테스트
 
-### 3. DB 설정 최적화
-- DB 설정: LightStrengthGain과 ContrastOffset 값을 조정할 수 있습니다.
-- 권장 조정값: 현재 명도를 기반으로 목표 명도(128)에 도달하기 위한 최적의 DB 설정값을 제안합니다.
-- DB 즉시 적용: 변경된 설정값을 카메라 DB에 바로 적용할 수 있습니다.
+▶ 2. 이미지 불러오기 및 분석
+  • '이미지 불러오기' 버튼으로 분석할 이미지 선택 
+  • '전체 이미지 분석' 버튼으로 전체 이미지의 명도 분석
+  • 마우스 드래그로 특정 영역을 선택하여 부분 분석 가능
+  • 프리셋 영역: "기준 영역 (70,100)-(400,300)" 선택 가능
+  • '선택 영역 초기화' 버튼으로 선택 영역 제거
 
-### 4. 측정 기록 관리
-- 측정 결과 저장: 현재 분석 결과를 내부 기록에 저장합니다.
-- 기록 보기: 저장된 측정 기록을 확인하고 이전 DB 설정값을 적용할 수 있습니다.
-- Excel로 내보내기: 모든 측정 기록을 Excel 파일로 내보낼 수 있습니다.
-- 보고서 생성: HTML 형식의 상세 보고서를 생성합니다.
+▶ 3. 명도 분석 결과 확인
+  【측정 결과 (선택 영역)】
+    - 선택 영역: 분석한 이미지 좌표
+    - 평균 명도: 선택 영역의 평균 밝기 (0-255)
+    - 표준편차: 명도의 균일성 지표
+    - 최소/최대: 명도의 범위
+    - 평균 RGB: R, G, B 각 채널의 평균값
 
-## 단축키
-- F1: 사용 설명서 열기
+  【전체 이미지 정보】
+    - 이미지 크기: 가로 x 세로 픽셀
+    - 평균 명도: 전체 이미지의 평균 밝기
+    - 표준편차: 전체 이미지의 명도 균일성
+    - 평균 RGB: 전체 이미지의 RGB 평균값
 
-## 기술 문의
-문제나 개선 사항이 있으면 개발자에게 문의하세요:
-levi.beak@parksystems.com
+  【히스토그램】
+    - 명도 분포를 시각적으로 표시
+    - 빨간 점선: 목표 명도 (128)
+    - 파란 실선: 현재 평균 명도
+
+▶ 4. DB 설정 최적화
+  【DB 설정】
+    - LightStrengthGain: 슬라이더 또는 직접 입력으로 조정 (0.00 ~ 1.00)
+    - 'DB에서 불러오기' 버튼으로 현재 카메라 DB 값 로드
+    - 'DB 초기화' 버튼으로 기본값 복원
+
+  【권장 조정값】
+    - 목표 명도(128)에 도달하기 위한 최적값 자동 계산
+    - 현재 명도, 목표 명도, 권장 LightStrengthGain 값 표시
+    - 조정 방향 및 예상 효과 안내
+    - 'DB 즉시 적용' 버튼으로 Camera DB 직접 저장
+
+▶ 5. 측정 기록 관리
+  【측정 결과 저장】
+    - '측정 결과 저장' 버튼으로 현재 분석 결과를 기록에 추가
+    - 저장 정보: 시간, 이미지명, 영역, 명도, LightStrengthGain 등
+
+  【기록 보기】
+    - 측정 기록 목록에서 이전 기록 확인 가능
+    - 기록 선택 시 해당 시점의 상세 정보 표시
+    - 'DB 설정 적용' 버튼으로 선택한 기록의 DB 값 복원
+
+  【데이터 내보내기】
+    - 'Excel로 내보내기': 모든 측정 기록을 .xlsx 파일로 저장
+    - '보고서 생성': HTML 형식의 상세 분석 보고서 생성
+    - '기록 전체 삭제': 모든 측정 기록 초기화
+
+▶ 6. 이미지 뷰어 기능
+  • 줌 인/줌 아웃: 이미지 확대/축소
+  • 줌 리셋: 원본 크기로 복원
+  • 스크롤바: 큰 이미지 탐색
+
+
+【 단축키 】
+  F1 : 사용 설명서 열기
 """
         
         manual_text.insert(tk.END, manual_content)
@@ -508,12 +414,17 @@ levi.beak@parksystems.com
         version_frame = ttk.Frame(prod_frame)
         version_frame.pack(fill=tk.X, pady=2)
         ttk.Label(version_frame, text="버전:", width=15, anchor=tk.W).pack(side=tk.LEFT, padx=5)
-        ttk.Label(version_frame, text="1.0.0").pack(side=tk.LEFT, padx=5)
-        
+        ttk.Label(version_frame, text="1.2.0").pack(side=tk.LEFT, padx=5)
+
         date_frame = ttk.Frame(prod_frame)
         date_frame.pack(fill=tk.X, pady=2)
         ttk.Label(date_frame, text="출시일:", width=15, anchor=tk.W).pack(side=tk.LEFT, padx=5)
         ttk.Label(date_frame, text="2025-02-04").pack(side=tk.LEFT, padx=5)
+
+        update_frame = ttk.Frame(prod_frame)
+        update_frame.pack(fill=tk.X, pady=2)
+        ttk.Label(update_frame, text="개정일:", width=15, anchor=tk.W).pack(side=tk.LEFT, padx=5)
+        ttk.Label(update_frame, text="2025-10-29").pack(side=tk.LEFT, padx=5)
         
         # 개발 정보 프레임
         dev_frame = ttk.LabelFrame(content_frame, text="개발 정보")
@@ -522,12 +433,12 @@ levi.beak@parksystems.com
         dev_frame1 = ttk.Frame(dev_frame)
         dev_frame1.pack(fill=tk.X, pady=2)
         ttk.Label(dev_frame1, text="개발자:", width=15, anchor=tk.W).pack(side=tk.LEFT, padx=5)
-        ttk.Label(dev_frame1, text="Levi Beak / 박광림").pack(side=tk.LEFT, padx=5)
-        
+        ttk.Label(dev_frame1, text="백광림 / Levi Beak").pack(side=tk.LEFT, padx=5)
+
         dev_frame2 = ttk.Frame(dev_frame)
         dev_frame2.pack(fill=tk.X, pady=2)
         ttk.Label(dev_frame2, text="소속:", width=15, anchor=tk.W).pack(side=tk.LEFT, padx=5)
-        ttk.Label(dev_frame2, text="Quality Assurance Team").pack(side=tk.LEFT, padx=5)
+        ttk.Label(dev_frame2, text="Production and Quality Control Team").pack(side=tk.LEFT, padx=5)
         
         dev_frame3 = ttk.Frame(dev_frame)
         dev_frame3.pack(fill=tk.X, pady=2)
@@ -538,9 +449,9 @@ levi.beak@parksystems.com
         desc_frame = ttk.LabelFrame(content_frame, text="프로그램 설명")
         desc_frame.pack(fill=tk.X, pady=10)
         
-        desc_text = tk.Text(desc_frame, wrap=tk.WORD, height=6, width=50)
+        desc_text = tk.Text(desc_frame, wrap=tk.WORD, height=8, width=50)
         desc_text.pack(pady=5, padx=5, fill=tk.X)
-        desc_text.insert(tk.END, "Vision Brightness Calibration은 이미지의 명도를 측정하고 카메라 DB 설정을 최적화하기 위한 도구입니다.\n\n주요 기능:\n• 이미지 명도 분석\n• 카메라 DB 값 최적화 제안\n• 측정 기록 관리 및 보고서 생성")
+        desc_text.insert(tk.END, "Vision Brightness Calibration은 이미지의 명도를 측정하고 카메라 DB 설정을 최적화하기 위한 도구입니다.\n\n주요 기능:\n• 이미지 명도 분석 (전체 또는 선택 영역)\n• 히스토그램 시각화\n• LightStrengthGain 최적값 계산\n• 측정 기록 관리\n• Excel 내보내기 및 HTML 보고서 생성\n• Camera XML DB 파일 직접 수정")
         desc_text.config(state=tk.DISABLED)
 
         # 닫기 버튼 추가
@@ -1310,19 +1221,6 @@ levi.beak@parksystems.com
         except Exception as e:
             messagebox.showerror("오류", f"보고서 생성 중 오류 발생: {str(e)}")
 
-    def on_frame_configure(self, event):
-        """스크롤 프레임 크기가 변경되면 스크롤 영역 업데이트"""
-        self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
-
-    def on_canvas_configure(self, event):
-        """캔버스 크기가 변경되면 내부 프레임 너비 조정"""
-        canvas_width = event.width
-        self.main_canvas.itemconfig(self.canvas_frame_id, width=canvas_width)
-
-    def on_mousewheel(self, event):
-        """마우스 휠 이벤트 처리"""
-        self.main_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
     def load_db_values(self):
         """DB 파일에서 설정값 불러오기"""
         camera_xml_path, camera_name = self._get_camera_xml_path()
@@ -1399,25 +1297,25 @@ class AppController:
         try:
             # 카테고리별 체크리스트 항목 정의
             checklist_categories = {
-                "① Camera Vision Setting": [
+                "① 사전 완료 테스트": [
+                    "White balance 설정 완료",
+                    "Vimba Viewer 설정 완료",
+                ],
+                "② Camera Vision Setting": [
                     "Brightness: 50 설정 확인",
                     "Contrast: 0 설정 확인",
                     "Light Strength: 50 설정 확인"
                 ],
-                "② Sample Focus Setting": [
+
+                "③ Sample Focus Setting": [
                     "Tip-Sample Distance: 1.0mm 설정",
                     "측정 Sample: Bare Si 준비"
                 ],
-                "③ Capture Image 저장": [
+                "④ Capture Image 저장": [
                     "Vision Mode: Large 선택",
                     "Capture: Displayed 설정",
                     "이미지 측정 및 저장 완료"
                 ],
-                "④ 사전 완료 테스트": [
-                    "White balance 설정 완료",
-                    "Vimba Viewer 설정 완료",
-                    "Camera 연결 상태 확인"
-                ]
             }
             
             checklist_dialog = ChecklistDialog(self.root, checklist_categories)

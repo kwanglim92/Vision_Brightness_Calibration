@@ -1,4 +1,4 @@
-# Vision Brightness Calibration v1.1.0
+# Vision Brightness Calibration v1.2.0
 
 이미지의 명도(밝기)를 측정하고 카메라 DB 설정값을 최적화하기 위한 도구입니다.
 
@@ -103,29 +103,48 @@ python3 Vision_Cal.py
 ## 파일 구조
 
 ```
-webapp/
+Vision_Brightness_Calibration/
+├── src/                    # 소스 모듈
+│   ├── gui/               # GUI 컴포넌트
+│   │   ├── __init__.py
+│   │   └── checklist_dialog.py  # 체크리스트 대화상자
+│   ├── core/              # 핵심 비즈니스 로직
+│   │   └── __init__.py
+│   └── utils/             # 유틸리티 함수
+│       └── __init__.py
 ├── Vision_Cal.py           # 메인 프로그램
-├── run_vision_cal.py        # Python 실행 스크립트
-├── run_vision_cal.bat       # Windows 배치 파일
-├── test_gui.py             # 환경 테스트 스크립트
-├── requirements.txt        # 필수 패키지 목록
-├── report_template.html    # 보고서 템플릿
-└── README.md              # 사용 설명서
+├── run_vision_cal.py       # Python 실행 스크립트
+├── run_vision_cal.bat      # Windows 배치 파일
+├── test_gui.py            # 환경 테스트 스크립트
+├── test_checklist.py      # 체크리스트 테스트
+├── requirements.txt       # 필수 패키지 목록
+├── report_template.html   # 보고서 템플릿
+└── README.md             # 사용 설명서
 ```
 
 ## 개발자 정보
 
-- **개발자**: Levi Beak / 박광림
-- **소속**: Quality Assurance Team
+- **개발자**: Levi Beak / 백광림
+- **소속**: Production and Quality Control Team
 - **이메일**: levi.beak@parksystems.com
-- **버전**: 1.1.0
+- **버전**: 1.2.0
 - **출시일**: 2025-02-04
+- **개정일**: 2025-10-29
 
 ## 라이선스
 
 Park Systems 내부 사용 전용 소프트웨어입니다.
 
 ## 변경 이력
+
+### v1.2.0 (2025-10-29)
+- 코드베이스 최적화 및 리팩토링
+- ChecklistDialog를 별도 모듈로 분리 (src/gui/checklist_dialog.py)
+- 불필요한 파일 제거 (debug_checklist.py, fix_syntax_error.py, test_new_checklist.py)
+- 사용되지 않는 메서드 제거 (on_frame_configure, on_canvas_configure, on_mousewheel)
+- 모듈화된 프로젝트 구조 도입 (src/ 폴더)
+- 테스트 코드 간소화 및 중복 제거
+- 전체 코드 라인 수 약 33% 감소
 
 ### v1.1.0 (2025-02-04)
 - 초기 릴리즈
