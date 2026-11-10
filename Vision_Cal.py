@@ -31,7 +31,7 @@ class 명도측정프로그램:
 
     def __init__(self, root):
         self.root = root
-        self.root.title("Vision Brightness Calibration (v1.2.0)")
+        self.root.title("Vision Brightness Calibration (v1.2.1)")
         # 더 큰 창 크기로 설정
         self.root.geometry("1200x750")
 
@@ -309,7 +309,7 @@ class 명도측정프로그램:
         # 설명서 내용
         manual_content = """
 
-Vision Brightness Calibration v1.2.0 - 사용 설명서
+Vision Brightness Calibration v1.2.1 - 사용 설명서
 
 【 프로그램 개요 】
 이미지의 명도(밝기)를 측정하고 카메라 DB 설정값을 최적화하기 위한 도구입니다.
@@ -414,7 +414,7 @@ Vision Brightness Calibration v1.2.0 - 사용 설명서
         version_frame = ttk.Frame(prod_frame)
         version_frame.pack(fill=tk.X, pady=2)
         ttk.Label(version_frame, text="버전:", width=15, anchor=tk.W).pack(side=tk.LEFT, padx=5)
-        ttk.Label(version_frame, text="1.2.0").pack(side=tk.LEFT, padx=5)
+        ttk.Label(version_frame, text="1.2.1").pack(side=tk.LEFT, padx=5)
 
         date_frame = ttk.Frame(prod_frame)
         date_frame.pack(fill=tk.X, pady=2)
